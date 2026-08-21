@@ -49,7 +49,27 @@ Item {
     if (connectionState === "Disconnected") return "Disconnected"
     return "Checking…"
   }
-  readonly property string locationText: formatRegion(region)
+  readonly property string locationText: markupSafeText(formatRegion(region))
+
+  // PanelHero and the bar tooltip are shared Omarchy components whose Text
+  // format is not configurable by plugins. Keep command-derived values from
+  // ever looking like rich-text markup before passing them to those sinks.
+  function markupSafeText(raw) {
+    return String(raw || "")
+      .replace(/[\x00-\x1f\x7f]/g, " ")
+      .replace(/</g, "‹")
+      .replace(/>/g, "›")
+      .replace(/&/g, "＆")
+  }
+
+  function isSafeRegionId(value) {
+    return /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(String(value || "").trim())
+  }
+
+  function isKnownRegionId(value) {
+    var target = String(value || "").trim()
+    return target === "smart" || regions.indexOf(target) !== -1
+  }
 
   function cleanOutput(raw) {
     var lines = String(raw || "").split(/\r?\n/)
@@ -61,7 +81,7 @@ Item {
   }
 
   function elide(text) {
-    var value = String(text || "").replace(/\s+/g, " ").trim()
+    var value = markupSafeText(text).replace(/\s+/g, " ").trim()
     return value.length > 180 ? value.substring(0, 177) + "…" : value
   }
 
@@ -175,7 +195,7 @@ Item {
     var seen = ({})
     for (var i = 0; i < lines.length; i++) {
       var value = lines[i].trim()
-      if (value === "" || seen[value]) continue
+      if (!isSafeRegionId(value) || seen[value]) continue
       seen[value] = true
       next.push(value)
     }
@@ -198,7 +218,11 @@ Item {
   function connectTo(regionId) {
     if (!installed || actionProcess.running) return
     var target = String(regionId || "").trim()
-    if (target === "") return
+    if (!isSafeRegionId(target) || !isKnownRegionId(target)) {
+      lastError = "Unknown ExpressVPN location"
+      if (regions.length === 0) refreshRegions()
+      return
+    }
     region = target
     tunnelIp = ""
     desiredState = 1
@@ -336,7 +360,8 @@ Item {
       onStreamFinished: root._regionOutput = text
     }
     onExited: function(exitCode) {
-      if (exitCode === 0) root.region = root.cleanOutput(root._regionOutput || regionStdout.text)
+      var nextRegion = root.cleanOutput(root._regionOutput || regionStdout.text)
+      if (exitCode === 0) root.region = root.isSafeRegionId(nextRegion) ? nextRegion : ""
       root.refreshAddress()
     }
   }

@@ -113,8 +113,10 @@ BarWidget {
       ? -1
       : vpnRow.implicitWidth + button.scaledHorizontalMargin * 2
     active: ExpressVpnCore.VpnState.active
-    tooltipText: "ExpressVPN · " + ExpressVpnCore.VpnState.statusText
-      + (ExpressVpnCore.VpnState.region === "" ? "" : " · " + ExpressVpnCore.VpnState.locationText)
+    tooltipText: ExpressVpnCore.VpnState.markupSafeText(
+      "ExpressVPN · " + ExpressVpnCore.VpnState.statusText
+        + (ExpressVpnCore.VpnState.region === "" ? "" : " · " + ExpressVpnCore.VpnState.locationText)
+    )
 
     onPressed: function(buttonCode) {
       if (buttonCode === Qt.RightButton) ExpressVpnCore.VpnState.toggle()

@@ -53,6 +53,7 @@ Item {
     anchors.centerIn: parent
     visible: logo.source === "" || logo.status === Image.Error
     text: "VPN"
+    textFormat: Text.PlainText
     color: root.fallbackColor
     font.family: root.fallbackFontFamily
     font.pixelSize: Math.max(8, root.iconSize * 0.55)

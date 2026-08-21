@@ -256,7 +256,9 @@ Panel {
             width: parent.width
             iconComponent: vpnIcon
             title: "ExpressVPN"
-            meta: ExpressVpnCore.VpnState.statusText + " · " + ExpressVpnCore.VpnState.locationText
+            meta: ExpressVpnCore.VpnState.markupSafeText(
+              ExpressVpnCore.VpnState.statusText + " · " + ExpressVpnCore.VpnState.locationText
+            )
             foreground: root.contentForeground
             fontFamily: root.contentFontFamily
 
@@ -285,6 +287,7 @@ Panel {
           visible: ExpressVpnCore.VpnState.lastError !== ""
           width: parent.width
           text: ExpressVpnCore.VpnState.lastError
+          textFormat: Text.PlainText
           color: root.urgentForeground
           font.family: root.contentFontFamily
           font.pixelSize: Style.font.bodySmall
@@ -309,6 +312,7 @@ Panel {
                 anchors.left: parent.left
                 anchors.verticalCenter: parent.verticalCenter
                 text: modelData.label
+                textFormat: Text.PlainText
                 color: root.dimForeground
                 font.family: root.contentFontFamily
                 font.pixelSize: Style.font.bodySmall
@@ -321,6 +325,7 @@ Panel {
                 anchors.right: parent.right
                 anchors.verticalCenter: parent.verticalCenter
                 text: modelData.value
+                textFormat: Text.PlainText
                 color: root.contentForeground
                 font.family: root.contentFontFamily
                 font.pixelSize: Style.font.bodySmall
@@ -354,6 +359,7 @@ Panel {
             text: root.favoriteRegions.length === 0
               ? "Type to find locations"
               : root.favoriteRegions.length + (root.favoriteRegions.length === 1 ? " favorite" : " favorites")
+            textFormat: Text.PlainText
             color: root.dimForeground
             font.family: root.contentFontFamily
             font.pixelSize: Style.font.caption
@@ -395,6 +401,7 @@ Panel {
           visible: ExpressVpnCore.VpnState.loadingRegions
           width: parent.width
           text: "Loading ExpressVPN locations…"
+          textFormat: Text.PlainText
           color: root.dimForeground
           font.family: root.contentFontFamily
           font.pixelSize: Style.font.bodySmall
@@ -407,6 +414,7 @@ Panel {
           text: root.locationQuery === ""
             ? "No favorites yet. Type a location, then star it."
             : "No matching locations."
+          textFormat: Text.PlainText
           color: root.dimForeground
           font.family: root.contentFontFamily
           font.pixelSize: Style.font.bodySmall
@@ -451,6 +459,7 @@ Panel {
               anchors.rightMargin: Style.space(8)
               anchors.verticalCenter: parent.verticalCenter
               text: root.regionLabel(locationRow.modelData)
+              textFormat: Text.PlainText
               color: root.contentForeground
               font.family: root.contentFontFamily
               font.pixelSize: Style.font.body
@@ -464,6 +473,7 @@ Panel {
               anchors.rightMargin: Style.space(12)
               anchors.verticalCenter: parent.verticalCenter
               text: ExpressVpnCore.VpnState.region === locationRow.modelData ? "●" : ""
+              textFormat: Text.PlainText
               color: root.contentForeground
               font.family: root.contentFontFamily
               font.pixelSize: Style.font.caption
@@ -478,6 +488,7 @@ Panel {
               text: root.isSmartLocation(locationRow.modelData)
                 ? "⚡"
                 : (root.isFavorite(locationRow.modelData) ? "★" : "☆")
+              textFormat: Text.PlainText
               color: root.isSmartLocation(locationRow.modelData)
                 ? root.dimForeground
                 : (root.isFavorite(locationRow.modelData) ? Color.accent : root.dimForeground)
@@ -500,6 +511,7 @@ Panel {
         Text {
           width: parent.width
           text: "J/K move · Enter connect · F star · / search · T toggle"
+          textFormat: Text.PlainText
           color: root.dimForeground
           font.family: root.contentFontFamily
           font.pixelSize: Style.font.caption

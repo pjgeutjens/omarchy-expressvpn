@@ -1,0 +1,2 @@
+module io.github.pjgeutjens.expressvpn
+singleton VpnState 1.0 VpnState.qml

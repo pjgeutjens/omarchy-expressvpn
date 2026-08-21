@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "io.github.pjgeutjens.expressvpn",
+  "name": "ExpressVPN",
+  "version": "0.1.0",
+  "author": "Pieter Geutjens",
+  "license": "MIT",
+  "description": "ExpressVPN status, quick connect, location switching, favorites, and tunnel IP in the Omarchy bar.",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "BarWidget.qml"
+  },
+  "barWidget": {
+    "displayName": "ExpressVPN",
+    "description": "Control ExpressVPN, switch locations, and inspect connection details from the bar.",
+    "category": "Network",
+    "allowMultiple": false,
+    "defaultSection": "right"
+  }
+}

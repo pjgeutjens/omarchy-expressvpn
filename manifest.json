@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "io.github.pjgeutjens.expressvpn",
   "name": "ExpressVPN",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "author": "Pieter Geutjens",
   "license": "MIT",
   "description": "ExpressVPN status, quick connect, location switching, favorites, and tunnel IP in the Omarchy bar.",

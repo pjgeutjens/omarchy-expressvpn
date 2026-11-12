@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Controls
 import qs.Commons
 import qs.Ui
 import "." as ExpressVpnCore
@@ -16,7 +15,10 @@ Panel {
   property int locationIndex: 0
   property string focusSection: "header"
   property bool cursorActive: true
+  property bool searchMode: false
   property var favoriteRegions: []
+
+  readonly property int maxLocationQueryLength: 80
 
   readonly property var barIdentity: hostWidget || root
   readonly property color contentForeground: bar ? bar.foreground : Color.foreground
@@ -140,12 +142,14 @@ Panel {
   }
 
   function focusHeader() {
+    searchMode = false
     cursorActive = true
     focusSection = "header"
     keyCatcher.forceActiveFocus()
   }
 
   function focusLocation(index) {
+    searchMode = false
     cursorActive = true
     focusSection = "locations"
     locationIndex = Math.max(0, Math.min(Number(index), Math.max(0, visibleRegions.length - 1)))
@@ -178,9 +182,30 @@ Panel {
       ExpressVpnCore.VpnState.toggle()
   }
 
-  function focusSearch() {
-    searchField.forceActiveFocus()
-    searchField.selectAll()
+  function setLocationQuery(value) {
+    var clean = String(value || "")
+      .replace(/[\x00-\x1f\x7f]/g, "")
+      .substring(0, maxLocationQueryLength)
+    if (locationQuery === clean) return
+    locationQuery = clean
+    locationIndex = 0
+    clampLocationIndex()
+  }
+
+  function beginSearch() {
+    searchMode = true
+    cursorActive = false
+    focusSection = "search"
+    Qt.callLater(function() { searchKeyCatcher.forceActiveFocus() })
+  }
+
+  function moveSearchCursor(direction) {
+    if (visibleRegions.length === 0) return
+    locationIndex = Math.max(0, Math.min(
+      locationIndex + direction,
+      visibleRegions.length - 1
+    ))
+    Qt.callLater(function() { locationList.positionViewAtIndex(locationIndex, ListView.Contain) })
   }
 
   onSettingsChanged: syncFavoriteRegions()
@@ -193,6 +218,8 @@ Panel {
     cursorActive = true
     focusSection = "header"
     Qt.callLater(function() { keyCatcher.forceActiveFocus() })
+  } else {
+    searchMode = false
   }
 
   Connections {
@@ -223,7 +250,7 @@ Panel {
     PanelKeyCatcher {
       id: keyCatcher
       anchors.fill: parent
-      blocked: searchField.activeFocus
+      blocked: root.searchMode
       onMoveRequested: function(dx, dy) { if (dy !== 0) root.moveCursor(dy) }
       onActivateRequested: root.activateCursor()
       onCloseRequested: root.close()
@@ -237,7 +264,68 @@ Panel {
           if (root.focusSection === "locations" && root.visibleRegions.length > 0)
             root.toggleFavorite(root.visibleRegions[root.locationIndex])
         } else if (text === "/") {
-          root.focusSearch()
+          root.beginSearch()
+        }
+      }
+
+      // A writable Qt Quick text input can fetch an arbitrarily large native
+      // clipboard offer while merely refreshing paste capability. Search uses
+      // key events instead, so this plugin has no clipboard receive path.
+      Item {
+        id: searchKeyCatcher
+        anchors.fill: parent
+        focus: root.searchMode
+        Keys.priority: Keys.BeforeItem
+        Keys.onPressed: function(event) {
+          if (!root.searchMode) return
+
+          if (event.key === Qt.Key_Escape) {
+            root.setLocationQuery("")
+            root.focusHeader()
+            event.accepted = true
+            return
+          }
+          if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
+            if (root.visibleRegions.length > 0)
+              root.selectRegion(root.visibleRegions[root.locationIndex])
+            root.focusLocation(root.locationIndex)
+            event.accepted = true
+            return
+          }
+          if (event.key === Qt.Key_Down) {
+            root.moveSearchCursor(1)
+            event.accepted = true
+            return
+          }
+          if (event.key === Qt.Key_Up) {
+            root.moveSearchCursor(-1)
+            event.accepted = true
+            return
+          }
+          if (event.key === Qt.Key_Backspace) {
+            root.setLocationQuery(root.locationQuery.substring(0, root.locationQuery.length - 1))
+            event.accepted = true
+            return
+          }
+          if (event.key === Qt.Key_Delete) {
+            root.setLocationQuery("")
+            event.accepted = true
+            return
+          }
+          if (event.key === Qt.Key_Tab || event.key === Qt.Key_Backtab) {
+            root.searchMode = false
+            root.switchPanel((event.modifiers & Qt.ShiftModifier) || event.key === Qt.Key_Backtab ? -1 : 1)
+            event.accepted = true
+            return
+          }
+          if (event.modifiers & (Qt.ControlModifier | Qt.AltModifier | Qt.MetaModifier)) {
+            event.accepted = true
+            return
+          }
+          if (event.text && event.text.length > 0 && event.text !== "/") {
+            root.setLocationQuery(root.locationQuery + event.text)
+            event.accepted = true
+          }
         }
       }
 
@@ -368,32 +456,50 @@ Panel {
           }
         }
 
-        TextField {
-          id: searchField
+        BorderSurface {
+          id: searchSurface
           width: parent.width
-          text: root.locationQuery
-          placeholderText: "Search all locations"
-          foreground: root.contentForeground
-          font.family: root.contentFontFamily
-          onTextChanged: {
-            root.locationQuery = text
-            root.locationIndex = 0
+          implicitHeight: searchLabel.implicitHeight
+            + Style.spacing.inputPaddingY * 2
+            + borderTop + borderBottom
+          color: Style.controlFill(
+            root.searchMode,
+            searchMouse.containsMouse,
+            root.contentForeground,
+            Color.accent
+          )
+          borderSpec: Border.controlSpec(
+            root.searchMode ? "focus" : (searchMouse.containsMouse ? "hover-cursor" : "normal"),
+            root.contentForeground,
+            Color.accent
+          )
+          radius: Style.cornerRadius
+
+          Text {
+            id: searchLabel
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
+            anchors.leftMargin: Style.spacing.controlPaddingX + searchSurface.borderLeft
+            anchors.rightMargin: Style.spacing.controlPaddingX + searchSurface.borderRight
+            text: root.locationQuery !== ""
+              ? root.locationQuery + (root.searchMode ? "▌" : "")
+              : (root.searchMode ? "Type a location… ▌" : "Search all locations")
+            textFormat: Text.PlainText
+            color: root.locationQuery !== "" || root.searchMode
+              ? root.contentForeground
+              : Qt.darker(root.contentForeground, 1.6)
+            font.family: root.contentFontFamily
+            font.pixelSize: Style.font.body
+            elide: Text.ElideRight
           }
-          onAccepted: {
-            if (root.visibleRegions.length > 0) root.selectRegion(root.visibleRegions[root.locationIndex])
-            root.focusLocation(root.locationIndex)
-          }
-          Keys.onDownPressed: function(event) {
-            root.focusLocation(Math.min(root.locationIndex + 1, root.visibleRegions.length - 1))
-            event.accepted = true
-          }
-          Keys.onUpPressed: function(event) {
-            root.focusLocation(Math.max(0, root.locationIndex - 1))
-            event.accepted = true
-          }
-          Keys.onEscapePressed: {
-            text = ""
-            root.focusHeader()
+
+          MouseArea {
+            id: searchMouse
+            anchors.fill: parent
+            hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
+            onClicked: root.beginSearch()
           }
         }
 

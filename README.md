@@ -12,7 +12,7 @@ A compact Omarchy Quattro bar widget for checking and toggling ExpressVPN.
 - Connect through ExpressVPN's Smart Location from the always-visible Fastest server row.
 - Star frequently used locations to keep them at the top of the picker.
 - See the active tunnel IP in the panel while connected.
-- Press `/` to focus location search; navigation keys remain available outside it.
+- Press `/` to search locations; type to filter, use Backspace to edit, and press Escape to clear.
 
 The plugin uses the installed `expressvpnctl` command and stores no account,
 activation, or connection credentials.

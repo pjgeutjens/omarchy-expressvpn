@@ -7,7 +7,7 @@ A compact Omarchy Quattro bar widget for checking and toggling ExpressVPN.
 - Left-click opens a status panel with an on/off switch.
 - Right-click connects or disconnects immediately.
 - Middle-click refreshes the status.
-- The bar dot pulses while the connection is changing.
+- The bar icon uses the theme's active color while connected and pulses while the connection is changing.
 - Search all ExpressVPN locations in the panel and reconnect to one directly.
 - Connect through ExpressVPN's Smart Location from the always-visible Fastest server row.
 - Star frequently used locations to keep them at the top of the picker.

@@ -111,8 +111,19 @@ BarWidget {
     hasVisualContent: true
     fixedWidth: root.vertical
       ? -1
-      : vpnRow.implicitWidth + button.scaledHorizontalMargin * 2
+      : vpnIcon.implicitWidth + button.scaledHorizontalMargin * 2
     active: ExpressVpnCore.VpnState.active
+    readonly property color statusIconColor: {
+      if (!ExpressVpnCore.VpnState.installed)
+        return Qt.darker(button.foreground, 1.8)
+      if (ExpressVpnCore.VpnState.lastError !== "")
+        return Color.urgent
+      if (ExpressVpnCore.VpnState.connected)
+        return button.activeColor
+      if (ExpressVpnCore.VpnState.busy)
+        return button.foreground
+      return Qt.darker(button.foreground, 1.55)
+    }
     tooltipText: ExpressVpnCore.VpnState.markupSafeText(
       "ExpressVPN · " + ExpressVpnCore.VpnState.statusText
         + (ExpressVpnCore.VpnState.region === "" ? "" : " · " + ExpressVpnCore.VpnState.locationText)
@@ -124,37 +135,42 @@ BarWidget {
       else root.toggle()
     }
 
-    Row {
-      id: vpnRow
+    ExpressVpnCore.ExpressVpnIcon {
+      id: vpnIcon
       anchors.centerIn: parent
-      spacing: Style.space(4)
+      iconSize: Style.bar.iconFont
+      iconColor: button.statusIconColor
+      maskThresholdMin: 0.48
+      fallbackColor: button.statusIconColor
+      fallbackFontFamily: button.fontFamily
 
-      ExpressVpnCore.ExpressVpnIcon {
-        iconSize: Style.bar.iconFont
-        iconColor: button.foreground
-        maskThresholdMin: 0.48
-        fallbackColor: button.foreground
-        fallbackFontFamily: button.fontFamily
-        anchors.verticalCenter: parent.verticalCenter
+      Behavior on iconColor {
+        ColorAnimation { duration: Style.duration(160) }
       }
+      Behavior on fallbackColor {
+        ColorAnimation { duration: Style.duration(160) }
+      }
+    }
 
-      Rectangle {
-        width: Style.space(4)
-        height: width
-        radius: width / 2
-        color: ExpressVpnCore.VpnState.connected
-          ? button.activeColor
-          : ExpressVpnCore.VpnState.transitional
-            ? button.foreground
-            : Qt.darker(button.foreground, 1.8)
-        anchors.verticalCenter: parent.verticalCenter
+    SequentialAnimation {
+      running: ExpressVpnCore.VpnState.busy && !Style.reduceMotion
+      loops: Animation.Infinite
+      onRunningChanged: if (!running) vpnIcon.opacity = 1.0
 
-        SequentialAnimation on opacity {
-          running: ExpressVpnCore.VpnState.transitional
-          loops: Animation.Infinite
-          NumberAnimation { to: 0.3; duration: 500 }
-          NumberAnimation { to: 1.0; duration: 500 }
-        }
+      NumberAnimation {
+        target: vpnIcon
+        property: "opacity"
+        from: 1.0
+        to: 0.35
+        duration: Style.duration(500)
+        easing.type: Easing.InOutSine
+      }
+      NumberAnimation {
+        target: vpnIcon
+        property: "opacity"
+        to: 1.0
+        duration: Style.duration(500)
+        easing.type: Easing.InOutSine
       }
     }
   }

@@ -21,6 +21,7 @@ Item {
   property string _actionOutput: ""
   property string _actionError: ""
   property string _routeOutput: ""
+  property int cliEpoch: 0
 
   readonly property bool connected: connectionState === "Connected"
   readonly property bool transitional: connectionState === "Connecting"
@@ -146,9 +147,26 @@ Item {
     if (state === "Connected" || region === "") refreshRegion()
   }
 
+  function handleCliStartFailure(operation) {
+    cliEpoch += 1
+    installed = false
+    connectionState = "Unknown"
+    region = ""
+    regions = []
+    tunnelIp = ""
+    desiredState = -1
+    statusWatchdog.stop()
+    actionWatchdog.stop()
+    desiredTimeout.stop()
+    delayedRefresh.stop()
+    addressRetry.stop()
+    lastError = "Could not start ExpressVPN " + operation
+  }
+
   function refresh() {
     if (!installed) {
       if (!whichProcess.running) {
+        whichProcess.launchConfirmed = false
         whichProcess.command = ["which", "expressvpnctl"]
         whichProcess.running = true
       }
@@ -157,14 +175,18 @@ Item {
     if (statusProcess.running || actionProcess.running || routeProcess.running) return
     _statusOutput = ""
     _statusError = ""
+    statusProcess.launchConfirmed = false
+    statusProcess.launchEpoch = cliEpoch
     statusProcess.command = ["expressvpnctl", "-t", "5", "get", "connectionstate"]
-    statusProcess.running = true
     statusWatchdog.restart()
+    statusProcess.running = true
   }
 
   function refreshRegion() {
     if (!installed || regionProcess.running || actionProcess.running || routeProcess.running) return
     _regionOutput = ""
+    regionProcess.launchConfirmed = false
+    regionProcess.launchEpoch = cliEpoch
     regionProcess.command = ["expressvpnctl", "-t", "5", "get", "region"]
     regionProcess.running = true
   }
@@ -172,6 +194,8 @@ Item {
   function refreshRegions() {
     if (!installed || regionsProcess.running || actionProcess.running || routeProcess.running) return
     _regionsOutput = ""
+    regionsProcess.launchConfirmed = false
+    regionsProcess.launchEpoch = cliEpoch
     regionsProcess.command = ["expressvpnctl", "-t", "15", "get", "regions"]
     regionsProcess.running = true
   }
@@ -185,6 +209,7 @@ Item {
     }
 
     _routeOutput = ""
+    routeProcess.launchConfirmed = false
     routeProcess.command = ["ip", "-j", "route", "get", "1.1.1.1"]
     routeProcess.running = true
   }
@@ -241,10 +266,12 @@ Item {
     lastError = ""
     _actionOutput = ""
     _actionError = ""
+    actionProcess.launchConfirmed = false
+    actionProcess.launchEpoch = cliEpoch
     actionProcess.command = command
-    actionProcess.running = true
     actionWatchdog.restart()
     desiredTimeout.restart()
+    actionProcess.running = true
   }
 
   Timer {
@@ -307,8 +334,11 @@ Item {
 
   Process {
     id: whichProcess
+    property bool launchConfirmed: false
     running: false
     command: []
+    onStarted: launchConfirmed = true
+    onRunningChanged: if (!running && !launchConfirmed) root.handleCliStartFailure("availability check")
     onExited: function(exitCode) {
       root.installed = exitCode === 0
       if (root.installed) {
@@ -326,6 +356,8 @@ Item {
 
   Process {
     id: statusProcess
+    property bool launchConfirmed: false
+    property int launchEpoch: -1
     running: false
     command: []
     stdout: StdioCollector {
@@ -338,8 +370,11 @@ Item {
       waitForEnd: true
       onStreamFinished: root._statusError = text
     }
+    onStarted: launchConfirmed = true
+    onRunningChanged: if (!running && !launchConfirmed) root.handleCliStartFailure("status command")
     onExited: function(exitCode) {
       statusWatchdog.stop()
+      if (launchEpoch !== root.cliEpoch) return
       var stdout = String(root._statusOutput || statusStdout.text || "")
       var stderr = String(root._statusError || statusStderr.text || "")
       if (exitCode === 0) root.applyState(stdout)
@@ -352,6 +387,8 @@ Item {
 
   Process {
     id: regionProcess
+    property bool launchConfirmed: false
+    property int launchEpoch: -1
     running: false
     command: []
     stdout: StdioCollector {
@@ -359,7 +396,10 @@ Item {
       waitForEnd: true
       onStreamFinished: root._regionOutput = text
     }
+    onStarted: launchConfirmed = true
+    onRunningChanged: if (!running && !launchConfirmed) root.handleCliStartFailure("location command")
     onExited: function(exitCode) {
+      if (launchEpoch !== root.cliEpoch) return
       var nextRegion = root.cleanOutput(root._regionOutput || regionStdout.text)
       if (exitCode === 0) root.region = root.isSafeRegionId(nextRegion) ? nextRegion : ""
       root.refreshAddress()
@@ -368,6 +408,8 @@ Item {
 
   Process {
     id: regionsProcess
+    property bool launchConfirmed: false
+    property int launchEpoch: -1
     running: false
     command: []
     stdout: StdioCollector {
@@ -375,7 +417,10 @@ Item {
       waitForEnd: true
       onStreamFinished: root._regionsOutput = text
     }
+    onStarted: launchConfirmed = true
+    onRunningChanged: if (!running && !launchConfirmed) root.handleCliStartFailure("location-list command")
     onExited: function(exitCode) {
+      if (launchEpoch !== root.cliEpoch) return
       if (exitCode === 0) root.applyRegions(root._regionsOutput || regionsStdout.text)
       root.refreshAddress()
     }
@@ -383,12 +428,18 @@ Item {
 
   Process {
     id: routeProcess
+    property bool launchConfirmed: false
     running: false
     command: []
     stdout: StdioCollector {
       id: routeStdout
       waitForEnd: true
       onStreamFinished: root._routeOutput = text
+    }
+    onStarted: launchConfirmed = true
+    onRunningChanged: if (!running && !launchConfirmed) {
+      addressRetry.stop()
+      root.tunnelIp = ""
     }
     onExited: function(exitCode) {
       var output = String(root._routeOutput || routeStdout.text || "")
@@ -398,6 +449,8 @@ Item {
 
   Process {
     id: actionProcess
+    property bool launchConfirmed: false
+    property int launchEpoch: -1
     running: false
     command: []
     stdout: StdioCollector {
@@ -410,8 +463,11 @@ Item {
       waitForEnd: true
       onStreamFinished: root._actionError = text
     }
+    onStarted: launchConfirmed = true
+    onRunningChanged: if (!running && !launchConfirmed) root.handleCliStartFailure("action command")
     onExited: function(exitCode) {
       actionWatchdog.stop()
+      if (launchEpoch !== root.cliEpoch) return
       var stdout = String(root._actionOutput || actionStdout.text || "")
       var stderr = String(root._actionError || actionStderr.text || "")
       if (exitCode !== 0) {

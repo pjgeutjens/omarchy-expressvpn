@@ -38,10 +38,15 @@ omarchy bar move io.github.pjgeutjens.expressvpn --section right
 
 ## Branding
 
-The widget resolves the `expressvpn` desktop icon installed by the official
-ExpressVPN application. This repository does not redistribute ExpressVPN
-artwork. ExpressVPN and its logo are trademarks of their respective owner;
-this independent plugin is not affiliated with or endorsed by ExpressVPN.
+The widget paints the `expressvpn` pixmap installed by the official ExpressVPN
+application (`/usr/share/pixmaps/expressvpn.png`). Omarchy's icon theme does
+not index that pixmap, so a theme lookup comes back empty. This repository
+does not redistribute ExpressVPN artwork. ExpressVPN and its logo are
+trademarks of their respective owner; this independent plugin is not
+affiliated with or endorsed by ExpressVPN.
+
+The ExpressVPN application also puts that mark in the system tray. Hide the
+tray item `expressvpn` if you only want this widget on the bar.
 
 ## One-time ExpressVPN setup
 

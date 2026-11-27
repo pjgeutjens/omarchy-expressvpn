@@ -15,11 +15,16 @@ Item {
   implicitWidth: iconSize
   implicitHeight: iconSize
 
-  // The client ships the mark as a pixmap. This shell's icon theme does not
-  // index /usr/share/pixmaps, so a theme lookup comes back empty.
-  readonly property url logoUrl: "file:///usr/share/pixmaps/expressvpn.png"
-  readonly property bool logoReady: logo.status === Image.Ready
-  readonly property bool logoPending: logo.status === Image.Loading
+  // Theme icon first. The pixmap is only for themes that do not index
+  // /usr/share/pixmaps, where the lookup comes back empty.
+  readonly property string themeIcon: Quickshell.iconPath("expressvpn", true)
+  readonly property string pixmapIcon: "file:///usr/share/pixmaps/expressvpn.png"
+  property string iconSource: themeIcon !== "" ? themeIcon : pixmapIcon
+  property bool triedPixmap: themeIcon === ""
+  property bool sourcesExhausted: false
+  readonly property bool logoReady: !sourcesExhausted && logo.status === Image.Ready
+  readonly property bool logoPending: !sourcesExhausted && iconSource !== ""
+    && (logo.status === Image.Loading || logo.status === Image.Null)
 
   Item {
     id: mark
@@ -30,13 +35,23 @@ Item {
     Image {
       id: logo
       anchors.fill: parent
-      source: root.logoUrl
+      source: root.sourcesExhausted ? "" : root.iconSource
       sourceSize.width: Math.ceil(root.iconSize * 2)
       sourceSize.height: Math.ceil(root.iconSize * 2)
       fillMode: Image.PreserveAspectFit
       smooth: true
       mipmap: true
       cache: true
+      onStatusChanged: {
+        if (status !== Image.Error || root.sourcesExhausted) return
+        if (String(source) !== root.iconSource) return
+        if (!root.triedPixmap) {
+          root.triedPixmap = true
+          Qt.callLater(function() { root.iconSource = root.pixmapIcon })
+          return
+        }
+        root.sourcesExhausted = true
+      }
       // Drawn into a layer the mask can sample. opacity 0 still renders that
       // layer; visible: false leaves it empty and the tint becomes a square.
       opacity: root.colorized ? 0 : 1

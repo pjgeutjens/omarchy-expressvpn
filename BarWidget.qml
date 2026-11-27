@@ -109,9 +109,8 @@ BarWidget {
     text: ""
     labelVisible: false
     hasVisualContent: true
-    fixedWidth: root.vertical
-      ? -1
-      : vpnIcon.implicitWidth + button.scaledHorizontalMargin * 2
+    fixedWidth: root.vertical ? -1 : Style.bar.iconSlot
+    fixedHeight: root.vertical ? Style.bar.iconSlot : -1
     active: ExpressVpnCore.VpnState.active
     readonly property color statusIconColor: {
       if (!ExpressVpnCore.VpnState.installed)
@@ -120,9 +119,7 @@ BarWidget {
         return Color.urgent
       if (ExpressVpnCore.VpnState.connected)
         return button.activeColor
-      if (ExpressVpnCore.VpnState.busy)
-        return button.foreground
-      return Qt.darker(button.foreground, 1.55)
+      return button.foreground
     }
     tooltipText: ExpressVpnCore.VpnState.markupSafeText(
       "ExpressVPN · " + ExpressVpnCore.VpnState.statusText
@@ -137,12 +134,16 @@ BarWidget {
 
     ExpressVpnCore.ExpressVpnIcon {
       id: vpnIcon
-      anchors.centerIn: parent
-      iconSize: Style.bar.iconFont
+      width: Style.bar.iconCanvas
+      height: Style.bar.iconCanvas
+      x: (button.width - width) / 2
+      y: (button.height - height) / 2
+      iconSize: Style.bar.iconSize
       iconColor: button.statusIconColor
-      maskThresholdMin: 0.48
       fallbackColor: button.statusIconColor
       fallbackFontFamily: button.fontFamily
+      scale: button.pressScale
+      transformOrigin: Item.Center
 
       Behavior on iconColor {
         ColorAnimation { duration: Style.duration(160) }
